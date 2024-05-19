@@ -1,0 +1,43 @@
+name: Tests
+on: ["push", "pull_request"]
+jobs:
+  feature:
+    runs-on: ubuntu-latest
+    container:
+      image: kirschbaumdevelopment/laravel-test-runner:8.2
+ 
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        fetch-depth: 1
+ 
+    - name: Install composer dependencies
+      run: |
+        composer install --no-scripts
+    
+    - name: Install node dependencies
+      run: |
+        npm install -g pnpm && pnpm install
+        pnpm install
+ 
+    - name: Prepare Laravel Application
+      run: |
+        cp .env.ci .env
+        php artisan key:generate
+        touch database/testing.sqlite
+        php artisan migrate --force
+
+    - name: Build assets
+      run: |
+        pnpm build
+
+    - name: Run Testsuite
+      run: ./vendor/bin/pest --compact --group=feature
+
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: test-results
+        path: .pest-report/
+        if-no-files-found: ignore
